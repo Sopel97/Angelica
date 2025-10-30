@@ -18,6 +18,8 @@ import me.jellysquid.mods.sodium.client.gl.buffer.VertexData;
 import me.jellysquid.mods.sodium.client.gl.device.CommandList;
 import me.jellysquid.mods.sodium.client.gl.device.DrawCommandList;
 import me.jellysquid.mods.sodium.client.gl.device.RenderDevice;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import me.jellysquid.mods.sodium.client.gl.func.GlFunctions;
 import me.jellysquid.mods.sodium.client.gl.tessellation.GlPrimitiveType;
 import me.jellysquid.mods.sodium.client.gl.tessellation.GlTessellation;
@@ -41,6 +43,7 @@ import net.coderbot.iris.sodium.IrisChunkShaderBindingPoints;
 import net.minecraft.util.EnumChatFormatting;
 import net.minecraft.util.Util;
 import org.lwjgl.opengl.GL11;
+import com.gtnewhorizons.angelica.compat.mojang.ChunkSectionPos;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -100,6 +103,8 @@ public class MultidrawChunkRenderBackend extends ChunkRenderShaderBackend<Multid
 
     private final ChunkDrawParamsVector uniformBufferBuilder;
     private final IndirectCommandBufferVector commandClientBufferBuilder;
+
+    private static final Logger LOGGER = LogManager.getLogger("MultidrawChunkRenderBackend");
 
     public MultidrawChunkRenderBackend(RenderDevice device, ChunkVertexType vertexType) {
         super(vertexType);
@@ -311,6 +316,8 @@ public class MultidrawChunkRenderBackend extends ChunkRenderShaderBackend<Multid
             }
 
             final ChunkRenderContainer<MultidrawGraphicsState> render = result.render;
+            ChunkSectionPos pos = render.getChunkPos();
+            LOGGER.info("batching chunk upload {} {} {}", pos.getSectionX(), pos.getSectionY(), pos.getSectionZ());
 
             ChunkRegion<MultidrawGraphicsState> region = this.bufferManager.getRegion(render.getChunkX(), render.getChunkY(), render.getChunkZ());
 

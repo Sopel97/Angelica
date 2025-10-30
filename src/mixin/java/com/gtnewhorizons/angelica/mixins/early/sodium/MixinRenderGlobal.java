@@ -136,7 +136,7 @@ public class MixinRenderGlobal implements IRenderGlobalExt {
      */
     @Overwrite
     public boolean updateRenderers(EntityLivingBase e, boolean b){
-        AngelicaRenderQueue.processTasks(1);
+        AngelicaRenderQueue.processTasks(16);
         return true;
     }
 
