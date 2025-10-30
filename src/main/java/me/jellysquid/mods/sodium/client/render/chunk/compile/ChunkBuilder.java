@@ -41,7 +41,7 @@ public class ChunkBuilder<T extends ChunkGraphicsState> {
     /**
      * The maximum number of jobs that can be queued for a given worker thread.
      */
-    private static final int TASK_QUEUE_LIMIT_PER_WORKER = 2;
+    private static final int TASK_QUEUE_LIMIT_PER_WORKER = 20000;
 
     private static final Logger LOGGER = LogManager.getLogger("ChunkBuilder");
 
