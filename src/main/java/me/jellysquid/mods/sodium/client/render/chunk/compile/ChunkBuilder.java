@@ -226,8 +226,11 @@ public class ChunkBuilder<T extends ChunkGraphicsState> {
         if (this.uploadQueue.isEmpty()) {
             return false;
         }
-
+        
+        long startTime = System.nanoTime();
         this.backend.upload(RenderDevice.INSTANCE.createCommandList(), filterChunkBuilds(new DequeDrain<>(this.uploadQueue)));
+        long elapsedTime = System.nanoTime() - startTime;
+        LOGGER.info("Uploading chunks took {} ns", elapsedTime);
 
         return true;
     }
@@ -364,8 +367,6 @@ public class ChunkBuilder<T extends ChunkGraphicsState> {
         ChunkRenderBuildTask<T> task = this.createRebuildTask(render);
 
         if(task != null) {
-            ChunkSectionPos pos = render.getChunkPos();
-            LOGGER.info("scheduling chunk render {} {} {}", pos.getSectionX(), pos.getSectionY(), pos.getSectionZ());
             return this.schedule(task);
         } else {
             return null;
@@ -451,11 +452,8 @@ public class ChunkBuilder<T extends ChunkGraphicsState> {
 
                 ChunkBuildResult<T> result;
 
-                long startTime = System.nanoTime();
-                LOGGER.info("Starting chunk build {} on thread {}", job.task.toString(), this.i);
                 try {
                     // Perform the build task with this worker's local resources and obtain the result
-                    
                     result = job.task.performBuild(this.cache, this.bufferCache, job);
                 } catch (Exception e) {
                     // Propagate any exception from chunk building
@@ -468,8 +466,6 @@ public class ChunkBuilder<T extends ChunkGraphicsState> {
                 // The result can be null if the task is cancelled
                 if (result != null) {
                     // Notify the future that the result is now available
-                    long estimatedTime = System.nanoTime() - startTime;
-                    LOGGER.info("Completing chunk build {} on thread {} took {} ns", job.task.toString(), this.i, estimatedTime);
                     job.future.complete(result);
                     // Unpark the main thread so it wakes up if it was blocking on the future having completed
                     LockSupport.unpark(GLStateManager.getMainThread());

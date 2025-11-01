@@ -316,8 +316,6 @@ public class MultidrawChunkRenderBackend extends ChunkRenderShaderBackend<Multid
             }
 
             final ChunkRenderContainer<MultidrawGraphicsState> render = result.render;
-            ChunkSectionPos pos = render.getChunkPos();
-            LOGGER.info("batching chunk upload {} {} {}", pos.getSectionX(), pos.getSectionY(), pos.getSectionZ());
 
             ChunkRegion<MultidrawGraphicsState> region = this.bufferManager.getRegion(render.getChunkX(), render.getChunkY(), render.getChunkZ());
 
