@@ -124,6 +124,8 @@ public class ChunkRenderManager<T extends ChunkGraphicsState> implements ChunkSt
 
     private boolean dirtySwap;
 
+    private boolean buildInvisibleChunks;
+
     private static final ThreadLocal<BlockRenderPass> threadLocalRenderPass = ThreadLocal.withInitial(() -> BlockRenderPass.CUTOUT_MIPPED);
     public static int getWorldRenderPass() {
         return threadLocalRenderPass.get().ordinal();
@@ -152,6 +154,8 @@ public class ChunkRenderManager<T extends ChunkGraphicsState> implements ChunkSt
         this.translucencyBlockRenderDistance = Math.min(9216, (renderDistance << 4) * (renderDistance << 4));
 
         this.useBlockFaceCulling = SodiumClientMod.options().advanced.useBlockFaceCulling;
+
+        this.buildInvisibleChunks = false; // TOOO: option?
 
         if(AngelicaConfig.enableIris) {
             this.chunkRenderListsSwap = new ChunkRenderList[BlockRenderPass.COUNT];
@@ -227,26 +231,34 @@ public class ChunkRenderManager<T extends ChunkGraphicsState> implements ChunkSt
         IntList list = this.culler.computeVisible(camera, frustum, frame, spectator);
         IntIterator it = list.iterator();
 
-        final IntOpenHashSet added = new IntOpenHashSet();
-        int numAddedVisible = 0;
-        while (it.hasNext()) {
-            final int id = it.nextInt();
-            ChunkRenderContainer<T> render = this.renders.get(id);
+        if (this.buildInvisibleChunks) {
+            final IntOpenHashSet added = new IntOpenHashSet();
+            int numAddedVisible = 0;
+            while (it.hasNext()) {
+                final int id = it.nextInt();
+                ChunkRenderContainer<T> render = this.renders.get(id);
 
-            added.add(id);
-            numAddedVisible += 1;
-            this.addChunk(render, true);
-        }
+                added.add(id);
+                numAddedVisible += 1;
+                this.addChunk(render, true);
+            }
 
-        int numAddedInvisible = 0;
-        int budget = this.builder.getSchedulingBudget();
-        final int length = this.renders.getCapacity();
-        for (int id = 0; id < length && numAddedInvisible < budget; ++id) {
-            ChunkRenderContainer<T> render = this.renders.get(id);
+            int numAddedInvisible = 0;
+            int budget = this.builder.getSchedulingBudget();
+            final int length = this.renders.getCapacity();
+            for (int id = 0; id < length && numAddedInvisible < budget; ++id) {
+                ChunkRenderContainer<T> render = this.renders.get(id);
 
-            if (render != null && !added.contains(id) && render.canRebuild() && (render.needsRebuild() || render.needsSort())) {
-                numAddedInvisible += 1;
-                this.addChunk(render, false);
+                if (render != null && !added.contains(id) && render.canRebuild() && (render.needsRebuild() || render.needsSort())) {
+                    numAddedInvisible += 1;
+                    this.addChunk(render, false);
+                }
+            }
+        } else {
+            while (it.hasNext()) {
+                final int id = it.nextInt();
+                ChunkRenderContainer<T> render = this.renders.get(id);
+                this.addChunk(render, true);
             }
         }
     }
