@@ -43,8 +43,6 @@ import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.chunk.storage.ExtendedBlockStorage;
 import net.minecraftforge.common.util.ForgeDirection;
 import org.joml.Vector3d;
-import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.LogManager;
 
 import java.util.ArrayDeque;
 import java.util.Collection;
@@ -70,8 +68,6 @@ public class ChunkRenderManager<T extends ChunkGraphicsState> implements ChunkSt
      * but this value works fine in testing.
      */
     private static final float FOG_PLANE_OFFSET = 12.0f;
-
-    private static final Logger LOGGER = LogManager.getLogger("ChunkRenderManager");
 
     private final ChunkBuilder<T> builder;
     private final ChunkRenderBackend<T> backend;
@@ -209,7 +205,6 @@ public class ChunkRenderManager<T extends ChunkGraphicsState> implements ChunkSt
     }
 
     private void iterateChunks(Camera camera, FrustumExtended frustum, int frame, boolean spectator) {
-        long startTime = System.nanoTime();
         // Schedule new translucency sorting tasks if the camera has moved
         if(this.translucencySorting) {
             this.checkTranslucencyCameraMoved();
@@ -254,9 +249,6 @@ public class ChunkRenderManager<T extends ChunkGraphicsState> implements ChunkSt
                 this.addChunk(render, false);
             }
         }
-
-        long elapsedTime = System.nanoTime() - startTime;
-        LOGGER.info("numAddedInvisible {}, rebuildQueue {}, importantRebuildQueue {}, elapsed {} ns", numAddedInvisible, rebuildQueue.size(), importantRebuildQueue.size(), elapsedTime);
     }
 
     private float lastCameraTranslucentX, lastCameraTranslucentY, lastCameraTranslucentZ;

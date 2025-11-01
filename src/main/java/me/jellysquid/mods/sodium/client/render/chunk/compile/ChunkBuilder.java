@@ -227,10 +227,7 @@ public class ChunkBuilder<T extends ChunkGraphicsState> {
             return false;
         }
         
-        long startTime = System.nanoTime();
         this.backend.upload(RenderDevice.INSTANCE.createCommandList(), filterChunkBuilds(new DequeDrain<>(this.uploadQueue)));
-        long elapsedTime = System.nanoTime() - startTime;
-        LOGGER.info("Uploading chunks took {} ns", elapsedTime);
 
         return true;
     }
