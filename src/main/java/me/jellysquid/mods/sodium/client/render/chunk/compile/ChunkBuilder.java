@@ -47,12 +47,13 @@ public class ChunkBuilder<T extends ChunkGraphicsState> {
     private static final Logger LOGGER = LogManager.getLogger("ChunkBuilder");
 
     private final Deque<WrappedTask<T>> buildQueue = new ConcurrentLinkedDeque<>();
+    // special queue for tasks that will block until the main thread finalizes them
     private final Deque<WrappedTask<T>> buildQueueKnownBlocking = new ConcurrentLinkedDeque<>();
     private final Deque<ChunkBuildResult<T>> uploadQueue = new ConcurrentLinkedDeque<>();
     private final Deque<Throwable> failureQueue = new ConcurrentLinkedDeque<>();
 
     private final Object jobNotifier = new Object();
-    private final Object jobNotifierBlocking = new Object();
+    private final Object jobNotifierKnownBlocking = new Object();
 
     private final AtomicBoolean running = new AtomicBoolean(false);
     private final List<Thread> threads = new ArrayList<>();
@@ -155,8 +156,8 @@ public class ChunkBuilder<T extends ChunkGraphicsState> {
         synchronized (this.jobNotifier) {
             this.jobNotifier.notifyAll();
         }
-        synchronized (this.jobNotifierBlocking) {
-            this.jobNotifierBlocking.notifyAll();
+        synchronized (this.jobNotifierKnownBlocking) {
+            this.jobNotifierKnownBlocking.notifyAll();
         }
 
         // Keep processing the main thread tasks so the workers don't block forever
@@ -439,10 +440,11 @@ public class ChunkBuilder<T extends ChunkGraphicsState> {
                     continue;
                 }
 
+                // Relegate tasks that can block for an extended period of time to a separate threadpool.
                 if (!this.allowBlocking && job.task.willRenderInMainThread(this.cache)) {
                     ChunkBuilder.this.buildQueueKnownBlocking.add(job);
-                    synchronized (ChunkBuilder.this.jobNotifierBlocking) {
-                        ChunkBuilder.this.jobNotifierBlocking.notify();
+                    synchronized (ChunkBuilder.this.jobNotifierKnownBlocking) {
+                        ChunkBuilder.this.jobNotifierKnownBlocking.notify();
                     }
                     continue;
                 }
@@ -482,9 +484,9 @@ public class ChunkBuilder<T extends ChunkGraphicsState> {
                 WrappedTask<T> job = ChunkBuilder.this.buildQueueKnownBlocking.poll();
 
                 if (job == null) {
-                    synchronized (ChunkBuilder.this.jobNotifierBlocking) {
+                    synchronized (ChunkBuilder.this.jobNotifierKnownBlocking) {
                         try {
-                            ChunkBuilder.this.jobNotifierBlocking.wait();
+                            ChunkBuilder.this.jobNotifierKnownBlocking.wait();
                         } catch (InterruptedException ignored) {
                         }
                     }
