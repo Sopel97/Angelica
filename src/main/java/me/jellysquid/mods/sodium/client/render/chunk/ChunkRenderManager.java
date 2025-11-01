@@ -7,6 +7,7 @@ import com.gtnewhorizons.angelica.config.AngelicaConfig;
 import com.gtnewhorizons.angelica.rendering.AngelicaRenderQueue;
 import it.unimi.dsi.fastutil.ints.IntIterator;
 import it.unimi.dsi.fastutil.ints.IntList;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongCollection;
 import it.unimi.dsi.fastutil.longs.LongIterator;
@@ -42,6 +43,8 @@ import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.chunk.storage.ExtendedBlockStorage;
 import net.minecraftforge.common.util.ForgeDirection;
 import org.joml.Vector3d;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 
 import java.util.ArrayDeque;
 import java.util.Collection;
@@ -67,6 +70,8 @@ public class ChunkRenderManager<T extends ChunkGraphicsState> implements ChunkSt
      * but this value works fine in testing.
      */
     private static final float FOG_PLANE_OFFSET = 12.0f;
+
+    private static final Logger LOGGER = LogManager.getLogger("ChunkRenderManager");
 
     private final ChunkBuilder<T> builder;
     private final ChunkRenderBackend<T> backend;
@@ -204,6 +209,7 @@ public class ChunkRenderManager<T extends ChunkGraphicsState> implements ChunkSt
     }
 
     private void iterateChunks(Camera camera, FrustumExtended frustum, int frame, boolean spectator) {
+        long startTime = System.nanoTime();
         // Schedule new translucency sorting tasks if the camera has moved
         if(this.translucencySorting) {
             this.checkTranslucencyCameraMoved();
@@ -226,11 +232,31 @@ public class ChunkRenderManager<T extends ChunkGraphicsState> implements ChunkSt
         IntList list = this.culler.computeVisible(camera, frustum, frame, spectator);
         IntIterator it = list.iterator();
 
+        final IntOpenHashSet added = new IntOpenHashSet();
+        int numAddedVisible = 0;
         while (it.hasNext()) {
-            ChunkRenderContainer<T> render = this.renders.get(it.nextInt());
+            final int id = it.nextInt();
+            ChunkRenderContainer<T> render = this.renders.get(id);
 
-            this.addChunk(render);
+            added.add(id);
+            numAddedVisible += 1;
+            this.addChunk(render, true);
         }
+
+        int numAddedInvisible = 0;
+        int budget = this.builder.getSchedulingBudget();
+        final int length = this.renders.getCapacity();
+        for (int id = 0; id < length && numAddedInvisible < budget; ++id) {
+            ChunkRenderContainer<T> render = this.renders.get(id);
+
+            if (render != null && !added.contains(id) && render.canRebuild() && (render.needsRebuild() || render.needsSort())) {
+                numAddedInvisible += 1;
+                this.addChunk(render, false);
+            }
+        }
+
+        long elapsedTime = System.nanoTime() - startTime;
+        LOGGER.info("numAddedInvisible {}, rebuildQueue {}, importantRebuildQueue {}, elapsed {} ns", numAddedInvisible, rebuildQueue.size(), importantRebuildQueue.size(), elapsedTime);
     }
 
     private float lastCameraTranslucentX, lastCameraTranslucentY, lastCameraTranslucentZ;
@@ -249,7 +275,7 @@ public class ChunkRenderManager<T extends ChunkGraphicsState> implements ChunkSt
             hasCameraMovedTranslucent = false;
     }
 
-    private void addChunk(ChunkRenderContainer<T> render) {
+    private void addChunk(ChunkRenderContainer<T> render, boolean visible) {
         boolean canRebuild = render.canRebuild();
 
         if (AngelicaConfig.enableIris && ShadowRenderingState.areShadowsCurrentlyBeingRendered()) {
@@ -265,6 +291,9 @@ public class ChunkRenderManager<T extends ChunkGraphicsState> implements ChunkSt
         } else if (canRebuild && !render.getData().isEmpty() && render.needsSort()) {
             this.sortQueue.enqueue(render);
         }
+
+        if (!visible)
+            return;
 
         if (this.useFogCulling && render.getSquaredDistanceXZ(this.cameraX, this.cameraZ) >= this.fogRenderCutoff) {
             return;

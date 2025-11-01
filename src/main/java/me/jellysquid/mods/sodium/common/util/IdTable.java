@@ -54,6 +54,10 @@ public class IdTable<T> {
         this.elements[id] = value;
     }
 
+    public int getCapacity() {
+        return this.capacity;
+    }
+
     public Object[] getElements() {
         return this.elements;
     }
